@@ -16,6 +16,7 @@
 #include <sys/socket.h>
 #include <cstdint>
 #include <cstdio>
+#include <vector>
 using namespace std;
 
 // ---- Constants ----
@@ -34,13 +35,8 @@ const int32_t SOCKET_TIMEOUT_SEC = 5;                      // TODO: apply as SO_
 template <typename T>
 class Stack
 {
-    struct Node
-    {
-        T data;
-        Node *next;
-    };
-    Node *top;
-    int32_t count;
+   vector<T> data;
+
 
 public:
     // Implement these functions:
@@ -51,25 +47,48 @@ public:
     {
 
         // pushes the value on the stack if max limit is not reached yet.
+        if((int32_t)data.size() >= MAX_STACK_DEPTH){
+            return;
+        }
+
+        data.push_back(val);
     }
     T pop()
     {
         // pop the top value on the stack
+        T lastval = data.back();
+        data.pop_back();
+        return lastval;
     }
     T &peek()
     {
         // returns the top value on the stack
+        return data.back();
     }
     bool isEmpty()
     {
+        return data.empty();
     }
     int32_t depth()
     {
+        return (int32_t)data.size();
     }
     int32_t snapshot_into(T out[], int32_t maxLen)
     {
         // copies every frame, top to bottom in the array given as a parameter
         // this is what buildSnapshot() call, returns count written
+
+        int32_t count=0;
+
+        for(int i=data.size()-1; i>=0;i--){
+            if(count == maxLen){
+                break;
+            }
+            out[count] = data[i];
+            count++;
+        }
+
+        return count;
     }
 };
 
