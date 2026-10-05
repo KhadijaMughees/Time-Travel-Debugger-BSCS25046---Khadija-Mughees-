@@ -110,16 +110,35 @@ public:
     // Implement these functions
     Timeline()
     {
+        head = tail = nullptr;
+        stepCount =0;
     }
     void record(Snapshot *s)
     {
         // add record in the timeline
+        TimelineNode *n = new TimelineNode;
+        n->data = s;
+        n->next = nullptr;
+        n->prev = tail;
+
+        if(tail == nullptr){
+            head = n;
+        }
+        else{
+            tail->next = n;
+        }
+
+
+        tail = n;
+        stepCount++;
     }
     TimelineNode *begin()
     {
+        return head;
     }
     int32_t getStepCount()
     {
+        return stepCount;
     }
 };
 
@@ -180,10 +199,42 @@ bool readSourceLine(ifstream &in, string &out)
 string firstWord(const string &line)
 {
     // returns first word from the input string
+    int index =0;
+    string first="";
+    while(index < line.size() && line[index]==' '){
+        index++;
+    }
+
+    while(index<line.size() && line[index]!=' '){
+        first= first + line[index];
+        index++;
+    }
+
+    return first;
 }
 string secondWord(const string &line)
 {
     // returns the second word
+   
+    int index =0;
+    string second="";
+    while(index < line.size() && line[index]==' '){
+        index++;
+    }
+    while(index<line.size() && line[index]!=' '){
+        
+        index++;
+    }
+    while(index < line.size() && line[index]==' '){
+        index++;
+    }
+    while(index<line.size() && line[index]!=' '){
+        second = second + line[index];
+        index++;
+    }
+    return second;
+
+
 }
 bool validateProgram(const char *sourcePath)
 {

@@ -10,3 +10,4 @@
 ### 5 October 2026
 - implementing the Stack class but instead of nodes i am using vectors instead since i have a better understanding of working with them in stacks 
 - added a test file where i can just test my code blocks as i write them so debugging is easier (this file can be ignored since this is jsut to test my code nothing else and ill be deleting code that i have tested)
+- implemented the TimeLine class
