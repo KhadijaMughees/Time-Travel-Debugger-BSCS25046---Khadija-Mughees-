@@ -17,3 +17,4 @@
 - validating the program using stacks (similar to the bracket validation problem)
 - wrote the write to resovlve function but this took me longer since i had to figure out of the fwrite() function worked since i have never worked it with it before and i wanted to use ofstream but stuck with FILE* since that is what the function already used (still a little confused about the FILE*/fstream situation)
 -read resolve implementation 
+- done with resolveProgram (took me too long to understand this and figure out whats happening but i think i am  kind of enjoying this project now which is the biggest progress made so far in my opinion........)

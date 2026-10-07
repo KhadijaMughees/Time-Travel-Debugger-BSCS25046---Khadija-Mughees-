@@ -338,6 +338,11 @@ int64_t resolveProgram(const char *sourcePath, const char *resolveBinPath)
     int32_t funcCount = 0;
     PendingPatch patches[MAX_PATCHES];
     int32_t patchCount = 0;
+    string line ="";
+    string word="";
+    int64_t pos = 0;
+    int64_t patchfunc=-1;
+    int64_t mainoffset=-1;
     // Every source line becomes one record holding the raw line, as-is.
     // resolve() only PEEKS at the leading word(s) -- enough to spot FUNC
     // (remember its position) and CALL (remember which function it needs
@@ -346,6 +351,68 @@ int64_t resolveProgram(const char *sourcePath, const char *resolveBinPath)
     // with its target's position. Patching happens after the full write
     // Returns the byte offset of main's FUNC header record.
     // if there is no main return the error 
+
+    ifstream read(sourcePath);
+    if(!read){
+        return -1;
+    }
+
+    FILE *write = fopen(resolveBinPath,"wb+");
+    if(write == nullptr){
+        return -1;
+    }
+
+    while(readSourceLine(read,line)){
+        word = firstWord(line);
+        pos = writeResolveRecord(write,0,line);
+
+        if(word == "func"){
+            funcArray[funcCount].funcName = secondWord(line);
+            funcArray[funcCount].byteOffsetInResolveBin = pos;
+            funcCount++;
+        }
+        else if(word == "call"){
+            patches[patchCount].targetFuncName = secondWord(line);
+            patches[patchCount].byteOffsetOfOffsetField = pos;
+            patchCount++;
+        }
+
+        
+        
+    }
+
+
+
+    for(int i=0;i<patchCount;i++){
+        patchfunc = -1;
+        for(int j=0;j<funcCount;j++){
+            if(funcArray[j].funcName == patches[i].targetFuncName){
+                patchfunc = funcArray[j].byteOffsetInResolveBin;
+            }
+        }
+
+        if(patchfunc == -1){
+            fclose(write);
+            return -1;
+        }
+
+        fseek(write,patches[i].byteOffsetOfOffsetField,0);
+        fwrite(&patchfunc,sizeof(int64_t),1,write);
+
+
+    }
+
+
+    for(int i=0;i<funcCount;i++){
+        if(funcArray[i].funcName == "main"){
+            mainoffset = funcArray[i].byteOffsetInResolveBin;
+        }
+    }
+
+
+    fclose(write);
+
+    return mainoffset;
 }
 
 // PASS 0x2: EXECUTION (tokenization happens here)
