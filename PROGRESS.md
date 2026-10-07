@@ -16,3 +16,4 @@
 ### 7 October 2026
 - validating the program using stacks (similar to the bracket validation problem)
 - wrote the write to resovlve function but this took me longer since i had to figure out of the fwrite() function worked since i have never worked it with it before and i wanted to use ofstream but stuck with FILE* since that is what the function already used (still a little confused about the FILE*/fstream situation)
+-read resolve implementation 

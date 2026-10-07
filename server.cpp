@@ -316,6 +316,21 @@ int64_t writeResolveRecord(FILE *f, int64_t offsetField, const string &text)
 int64_t readResolveRecord(FILE *f, string &outText)
 {
     // reads one record at the current position and advances past it, returns the offset field - the raw line text comes back untouched in outText.
+
+    int64_t offset = 0;
+    int32_t sizeoftext =0;
+
+    if(fread(&offset,sizeof(int64_t),1,f)!=1){
+        return -1;
+    }
+
+    fread(&sizeoftext,sizeof(int32_t),1,f);
+
+    outText.resize(sizeoftext);
+    fread(&outText[0],1,sizeoftext,f);
+
+    return offset;
+
 }
 int64_t resolveProgram(const char *sourcePath, const char *resolveBinPath)
 {
