@@ -11,3 +11,8 @@
 - implementing the Stack class but instead of nodes i am using vectors instead since i have a better understanding of working with them in stacks 
 - added a test file where i can just test my code blocks as i write them so debugging is easier (this file can be ignored since this is jsut to test my code nothing else and ill be deleting code that i have tested)
 - implemented the TimeLine class
+- implemented readline, first and second word
+
+### 7 October 2026
+- validating the program using stacks (similar to the bracket validation problem)
+- wrote the write to resovlve function but this took me longer since i had to figure out of the fwrite() function worked since i have never worked it with it before and i wanted to use ofstream but stuck with FILE* since that is what the function already used (still a little confused about the FILE*/fstream situation)
