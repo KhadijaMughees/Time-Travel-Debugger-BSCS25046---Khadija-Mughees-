@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <vector>
+#include <stdexcept>
 using namespace std;
 
 // ---- Constants ----
@@ -56,6 +57,9 @@ public:
     T pop()
     {
         // pop the top value on the stack
+        if(isEmpty()){
+            throw std:: underflow_error("Stack is empty");
+        }
         T lastval = data.back();
         data.pop_back();
         return lastval;
@@ -63,6 +67,9 @@ public:
     T &peek()
     {
         // returns the top value on the stack
+        if(isEmpty()){
+            throw std::underflow_error("Stack is empty");
+        }
         return data.back();
     }
     bool isEmpty()
@@ -195,6 +202,19 @@ struct PendingPatch
 bool readSourceLine(ifstream &in, string &out)
 {
     // reads the next nonblank line
+    while(getline(in,out)){
+        if(!out.empty() && out.back() =='\r'){
+            out.pop_back();
+        }
+
+        for(int i=0;i<out.size();i++){
+            if(out[i]!=' '){
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 string firstWord(const string &line)
 {
@@ -236,9 +256,40 @@ string secondWord(const string &line)
 
 
 }
+
+
 bool validateProgram(const char *sourcePath)
 {
     // for each func defined there should be exactly one func_end and no nested funcs allowed - 
+
+    ifstream read(sourcePath);
+    if(!read){
+        return false;
+    }
+
+    Stack<string> check;
+    string line="";
+    string word ="";
+    while(readSourceLine(read,line)){
+        word = firstWord(line);
+        
+
+        if(word == "func"){
+            if(!check.isEmpty()){
+                return false;
+            }
+            check.push(word);
+        }
+        else if(word == "func_end"){
+            if(check.isEmpty()){
+                return false;
+            }
+            check.pop();
+        }
+    }
+
+    return true;
+
 }
 
 // PASS 0x1: RESOLVE() -> resolve.bin
