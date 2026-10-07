@@ -288,7 +288,11 @@ bool validateProgram(const char *sourcePath)
         }
     }
 
-    return true;
+    if(check.isEmpty()){
+        return true;
+    }
+    
+    return false;
 
 }
 
