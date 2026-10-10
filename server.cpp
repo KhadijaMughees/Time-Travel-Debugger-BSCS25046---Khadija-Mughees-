@@ -343,6 +343,7 @@ int64_t resolveProgram(const char *sourcePath, const char *resolveBinPath)
     int64_t pos = 0;
     int64_t patchfunc=-1;
     int64_t mainoffset=-1;
+    int64_t nextoffset =0;
     // Every source line becomes one record holding the raw line, as-is.
     // resolve() only PEEKS at the leading word(s) -- enough to spot FUNC
     // (remember its position) and CALL (remember which function it needs
@@ -364,7 +365,8 @@ int64_t resolveProgram(const char *sourcePath, const char *resolveBinPath)
 
     while(readSourceLine(read,line)){
         word = firstWord(line);
-        pos = writeResolveRecord(write,0,line);
+        pos = writeResolveRecord(write,nextoffset,line);
+        nextoffset = nextoffset + 8+4+line.size();
 
         if(word == "func"){
             funcArray[funcCount].funcName = secondWord(line);
@@ -433,6 +435,41 @@ int32_t tokenizeLine(const string &line, Token tokens[], int32_t maxTokens)
     // instruction set = [func, func_end, call, set, add, sub, mul and div]
     // next word is identifier like name of a function, variable name
     // after identifier all are the params/arg, space separated
+
+
+    int32_t ct=0;
+    int idx=0;
+    string word ="";
+
+    while(idx < line.size() && ct < maxTokens){
+        while(idx<line.size() && line[idx]==' '){
+            idx++;
+        }
+        if(idx>=line.size()){
+            break;
+        }
+        word = "";
+        while(idx<line.size() && line[idx] != ' '){
+            word = word + line[idx];
+            idx++;
+        }
+        token[ct].text = word;
+        if(ct ==0){
+            token[ct].type =KEYWORD;
+
+
+        }
+        else if(ct == 1){
+             token[ct].type =IDENTIFIER;
+        }
+        else{
+             token[ct].type =PARAM;
+        }
+
+        ct++;
+    }
+
+    return ct;
 }
 Snapshot *buildSnapshot(Stack<Frame> &callStack)
 {
