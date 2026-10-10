@@ -22,4 +22,5 @@
 ### 10 October 2026
 - initially when writing the resolve i had just stored 0 as the offset non call lines and the call lines offset was the postion of the fucntion it was calling but now i need to figure out how to do this exactly how the PDF demands. 
 - how i am changing it now is that instead of writing 0 each line will gets its own offset positoon first and then when the patching the call lines offset will get replaced by the offset of the function it is calling this way we wont have to mess with the text cause that will then change the length of the line and i have tired but i cant figure out how that would work so this solution seems to work and full fill the requirement of the PDF asw. (please let me do this like this thanks ur amazing)
-
+- implemented tonkenize line
+- added some helper fucntions for variable handling 

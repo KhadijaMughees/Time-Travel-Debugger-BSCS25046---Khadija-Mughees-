@@ -453,17 +453,17 @@ int32_t tokenizeLine(const string &line, Token tokens[], int32_t maxTokens)
             word = word + line[idx];
             idx++;
         }
-        token[ct].text = word;
+        tokens[ct].text = word;
         if(ct ==0){
-            token[ct].type =KEYWORD;
+            tokens[ct].type =KEYWORD;
 
 
         }
         else if(ct == 1){
-             token[ct].type =IDENTIFIER;
+             tokens[ct].type =IDENTIFIER;
         }
         else{
-             token[ct].type =PARAM;
+             tokens[ct].type =PARAM;
         }
 
         ct++;
@@ -474,7 +474,30 @@ int32_t tokenizeLine(const string &line, Token tokens[], int32_t maxTokens)
 Snapshot *buildSnapshot(Stack<Frame> &callStack)
 {
     // build the snapshot based on the callStack given
+    Snapshot *snap = new Snapshot();
+    snap->stackDepth = callStack.snapshot_into(snap->callStack,MAX_STACK_DEPTH);
+    return snap;
+
 }
+
+
+Variable* find_variable(Frame &f, const string &name){
+    for(int i=0;i<f.argc;i++){
+        if( f.argv[i].name == name){
+            return &f.argv[i];
+        }
+    }
+
+    for(int i=0;i<f.localCount;i++){
+        if(f.locals[i].name == name){
+            return &f.locals[i];
+        }
+    }
+
+    return nullptr;
+}
+
+
 void executeProgram(const char *resolveBinPath, int64_t mainOffset, Timeline &timeline)
 {
     // initialize the call stack
@@ -483,6 +506,9 @@ void executeProgram(const char *resolveBinPath, int64_t mainOffset, Timeline &ti
 
     // implementation:
     // execute line by line, and according to the keyword perform action
+
+
+
 }
 
 // PASS 0x3: SERIALIZE TIMELINE
