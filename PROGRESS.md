@@ -24,3 +24,7 @@
 - how i am changing it now is that instead of writing 0 each line will gets its own offset positoon first and then when the patching the call lines offset will get replaced by the offset of the function it is calling this way we wont have to mess with the text cause that will then change the length of the line and i have tired but i cant figure out how that would work so this solution seems to work and full fill the requirement of the PDF asw. (please let me do this like this thanks ur amazing)
 - implemented tonkenize line
 - added some helper fucntions for variable handling 
+
+### 11 October 2026
+- I have added a struct to keep track of the call line variable. Baically the variable whos values changes afternthe fucntion is called. So the var we send into the fucntion from the main we need to reflect the changes in main asw so this and with another stack thats keeping track of these variables i will be able to do that. 
+- changed the return typr of execute program from void to bool because if the the argument count doesnt match for the call line and the fucntion header i want it to return false

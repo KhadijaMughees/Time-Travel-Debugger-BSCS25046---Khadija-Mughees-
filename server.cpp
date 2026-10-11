@@ -539,7 +539,7 @@ void executeProgram(const char *resolveBinPath, int64_t mainOffset, Timeline &ti
     // implementation:
     // execute line by line, and according to the keyword perform action
     FILE* f = fopen(resolveBinPath,"rb");
-    
+
     if(f == nullptr){
         return;
     }
@@ -551,7 +551,7 @@ void executeProgram(const char *resolveBinPath, int64_t mainOffset, Timeline &ti
     Token tokens[MAX_TOKENS];
     int32_t n =0;
     string keyword="";
-    Varible* v;
+    Variable* v;
 
     mainframe.func_name ="main";
     mainframe.argc =0;
@@ -562,7 +562,7 @@ void executeProgram(const char *resolveBinPath, int64_t mainOffset, Timeline &ti
     fseek(f,mainOffset,0);
     readResolveRecord(f,line);
 
-    while(readResolveRecord(f,text) != -1){
+    while(readResolveRecord(f,line) != -1){
         n = tokenizeLine(line,tokens,MAX_TOKENS);
         keyword = tokens[0].text;
 
@@ -576,6 +576,37 @@ void executeProgram(const char *resolveBinPath, int64_t mainOffset, Timeline &ti
                 v->value = get_value(callStack.peek(),tokens[2].text);
             }
         }
+        else if(keyword == "add" && n==3){
+            v = find_variable(callStack.peek(),tokens[1].text);
+            if( v!=nullptr){
+                int32_t othervalue = get_value(callStack.peek(),tokens[2].text);
+                v->value = v->value + othervalue;
+            }
+        }
+        else if(keyword == "sub" && n==3){
+            v = find_variable(callStack.peek(),tokens[1].text);
+            if( v!=nullptr){
+                int32_t othervalue = get_value(callStack.peek(),tokens[2].text);
+                v->value = v->value - othervalue;
+            }
+        }
+        else if(keyword == "mul" && n==3 ) {
+            v = find_variable(callStack.peek(),tokens[1].text);
+            if( v!=nullptr){
+                int32_t othervalue = get_value(callStack.peek(),tokens[2].text);
+                v->value = v->value * othervalue;
+            }
+        }
+        else if(keyword == "div" && n==3){
+            v = find_variable(callStack.peek(),tokens[1].text);
+            if( v!=nullptr){
+                int32_t othervalue = get_value(callStack.peek(),tokens[2].text);
+                if(othervalue != 0){    
+                    v->value = v->value / othervalue;
+                }
+            }
+        }
+
 
         Snapshot* s = buildSnapshot(callStack);
         timeline.record(s);
