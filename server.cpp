@@ -497,7 +497,39 @@ Variable* find_variable(Frame &f, const string &name){
     return nullptr;
 }
 
+Variable* find_create(Frame &f, const string &name){
+    Variable *find = find_variable(f,name);
 
+    if(find != nullptr){
+        return find;
+    }
+
+    if(f.localCount >= MAX_VARS_PER_FRAME){
+        return nullptr;
+    }
+
+    f.locals[f.localCount].name = name;
+    f.locals[f.localCount].value = 0;
+    f.localCount++;
+    return &f.locals[f.localCount-1];
+}
+
+int32_t get_value(Frame &f, const string &text){
+    if(text.empty()){
+        return 0;
+    }
+
+    if(isdigit(text[0]) || (text[0]=='-' && text.size()>1)){
+        return stoi(text[0]);
+    }
+
+    Variable *v = find_variable(f,text);
+    if(v == nullptr){
+        return 0;
+    }
+
+    return v->value;
+}
 void executeProgram(const char *resolveBinPath, int64_t mainOffset, Timeline &timeline)
 {
     // initialize the call stack
@@ -506,8 +538,51 @@ void executeProgram(const char *resolveBinPath, int64_t mainOffset, Timeline &ti
 
     // implementation:
     // execute line by line, and according to the keyword perform action
+    FILE* f = fopen(resolveBinPath,"rb");
+    
+    if(f == nullptr){
+        return;
+    }
 
+    Stack<Frame> callStack;
+    Frame mainframe;
+    string line="";
+    
+    Token tokens[MAX_TOKENS];
+    int32_t n =0;
+    string keyword="";
+    Varible* v;
 
+    mainframe.func_name ="main";
+    mainframe.argc =0;
+    mainframe.returnLine = -1;
+    mainframe.localCount =0;
+    callStack.push(mainframe);
+
+    fseek(f,mainOffset,0);
+    readResolveRecord(f,line);
+
+    while(readResolveRecord(f,text) != -1){
+        n = tokenizeLine(line,tokens,MAX_TOKENS);
+        keyword = tokens[0].text;
+
+        if(keyword == "func_end"){
+            break;
+        }
+
+        if(keyword == "set" && n==3){
+            v = find_create(callStack.peek(),tokens[1].text);
+            if(v != nullptr){
+                v->value = get_value(callStack.peek(),tokens[2].text);
+            }
+        }
+
+        Snapshot* s = buildSnapshot(callStack);
+        timeline.record(s);
+        
+    }
+
+    fclose(f);
 
 }
 
