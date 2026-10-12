@@ -28,3 +28,7 @@
 ### 11 October 2026
 - I have added a struct to keep track of the call line variable. Baically the variable whos values changes afternthe fucntion is called. So the var we send into the fucntion from the main we need to reflect the changes in main asw so this and with another stack thats keeping track of these variables i will be able to do that. 
 - changed the return typr of execute program from void to bool because if the the argument count doesnt match for the call line and the fucntion header i want it to return false
+
+### 12 October 2026
+- added a helping fucntion for wrtieTdbg so we can write strings. a string cant be saved to the file directly because the computer will only keep a note pointing to the letters which will be useless late. The helper fucntion will save the real letters instead with the length first so when we are reading it later we will know how mnay letters to read back. 
+-writeTdbg implementation

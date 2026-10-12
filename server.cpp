@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <vector>
 #include <stdexcept>
+#include <cctype>
 using namespace std;
 
 // ---- Constants ----
@@ -182,6 +183,8 @@ void writeHeader(FILE *f, const TTDBHeader &h)
     fwrite(&h.version, sizeof(int32_t), 1, f);
 
     // placeholder for other two data members
+    fwrite(&h.stepCount,sizeof(int32_t),1,f);
+    fwrite(&h.indexOffset,sizeof(int64_t),1,f);
 }
 
 // resolve.bin - bookkeeping
@@ -520,7 +523,7 @@ int32_t get_value(Frame &f, const string &text){
     }
 
     if(isdigit(text[0]) || (text[0]=='-' && text.size()>1)){
-        return stoi(text[0]);
+        return stoi(text);
     }
 
     Variable *v = find_variable(f,text);
@@ -530,7 +533,12 @@ int32_t get_value(Frame &f, const string &text){
 
     return v->value;
 }
-void executeProgram(const char *resolveBinPath, int64_t mainOffset, Timeline &timeline)
+
+struct var_to_copy{
+    string callvar[MAX_VARS_PER_FRAME];
+};
+
+bool executeProgram(const char *resolveBinPath, int64_t mainOffset, Timeline &timeline)
 {
     // initialize the call stack
     // make the main frame
@@ -541,7 +549,7 @@ void executeProgram(const char *resolveBinPath, int64_t mainOffset, Timeline &ti
     FILE* f = fopen(resolveBinPath,"rb");
 
     if(f == nullptr){
-        return;
+        return false;
     }
 
     Stack<Frame> callStack;
@@ -553,6 +561,13 @@ void executeProgram(const char *resolveBinPath, int64_t mainOffset, Timeline &ti
     string keyword="";
     Variable* v;
 
+    Stack<var_to_copy> callVars;
+    Token funcheader[MAX_TOKENS];
+    string funcline="";
+    int64_t funcoffset = 0;
+    int64_t toreturn =0;
+    
+
     mainframe.func_name ="main";
     mainframe.argc =0;
     mainframe.returnLine = -1;
@@ -562,11 +577,11 @@ void executeProgram(const char *resolveBinPath, int64_t mainOffset, Timeline &ti
     fseek(f,mainOffset,0);
     readResolveRecord(f,line);
 
-    while(readResolveRecord(f,line) != -1){
+    while((funcoffset=readResolveRecord(f,line) )!= -1){
         n = tokenizeLine(line,tokens,MAX_TOKENS);
         keyword = tokens[0].text;
 
-        if(keyword == "func_end"){
+        if(keyword == "func_end" && callStack.depth() == 1){
             break;
         }
 
@@ -606,6 +621,53 @@ void executeProgram(const char *resolveBinPath, int64_t mainOffset, Timeline &ti
                 }
             }
         }
+        else if(keyword == "call" && n>=2 ){
+            if(callStack.depth() < MAX_STACK_DEPTH){
+                toreturn = ftell(f);
+                fseek(f,funcoffset,0);
+                readResolveRecord(f,funcline);
+                int fn = tokenizeLine(funcline,funcheader,MAX_TOKENS);
+
+                if(n < fn){
+                    fclose(f);
+                    return false;
+
+                }
+                Frame funcFrame;
+                funcFrame.func_name = tokens[1].text;
+                funcFrame.returnLine = (int32_t)toreturn;
+                funcFrame.localCount = 0;
+                funcFrame.argc = fn-2;
+                if(funcFrame.argc < 0){
+                    funcFrame.argc =0;
+                }
+
+                var_to_copy varcopy;
+
+                for(int i=0;i<funcFrame.argc;i++){
+                    funcFrame.argv[i].name = funcheader[2+i].text;
+                    funcFrame.argv[i].value = get_value(callStack.peek(),tokens[2+i].text);
+                    varcopy.callvar[i] = tokens[2+i].text;
+                }
+                callStack.push(funcFrame);
+                callVars.push(varcopy);
+
+
+            }
+        }
+        else if( keyword == "func_end"){
+            Frame funcdone = callStack.pop();
+            var_to_copy varcopy = callVars.pop();
+
+            for(int i=0;i< funcdone.argc ;i++){
+                Variable *target = find_variable(callStack.peek(), varcopy.callvar[i]);
+                if(target != nullptr){
+                    target->value = funcdone.argv[i].value;
+                }
+            }
+
+            fseek(f,funcdone.returnLine,0);
+        }
 
 
         Snapshot* s = buildSnapshot(callStack);
@@ -614,9 +676,40 @@ void executeProgram(const char *resolveBinPath, int64_t mainOffset, Timeline &ti
     }
 
     fclose(f);
+    return true;
+}
+
+
+void write_string_to_file(FILE *f,const string &s){
+    int32_t size = (int32_t)s.size();
+    fwrite(&size,sizeof(int32_t),1,f);
+    fwrite(s.data(),1,size,f);
 
 }
 
+void write_snapshot(FILE *F, const Snapshot *s){
+    fwrite(&s->stackDepth, sizeof(int32_t),1,f);
+
+
+    for(int i=0;i<s->stackDepth;i++){
+        const Frame &fr = s->callStack[i];
+        write_string_to_file(f,fr.func_name);
+        fwrite(&fr.argc,sizeof(int32_t),1,f);
+
+        for(int j=0;j<fr.argc;j++){
+            write_string_to_file(f,fr.argv[i].name);
+            fwrite(&fr.argv[i].value,sizeof(int32_t),1,f);
+        }
+
+        fwrite(&fr.returnLine,sizeof(int32_t),1,f);
+        fwrite(&fr.localCount,sizeof(int32_t),1,f);
+
+        for(int i=0;i<fr.localCount;i++){
+            write_string_to_file(f,fr.locals[i].name);
+            fwrite(&fr.locals[i].value,sizeof(int32_t),1,f);
+        }
+    }
+}
 // PASS 0x3: SERIALIZE TIMELINE
 void writeTdbg(Timeline &timeline, const char *tdbgPath)
 {
@@ -625,6 +718,46 @@ void writeTdbg(Timeline &timeline, const char *tdbgPath)
     // placing each snapshot in the file while maintaining the index(starting point of each nth snapshot)
     // after timeline add the index array i the file
     // update the header
+
+    FILE *f = fopen(tdbgPath,"wb+");
+    if(f == nullptr){
+        return;
+    }
+
+    int32_t steps = timeline.getStepCount();
+
+    TTDBHeader header;
+    header.magic[0] ='T';
+    header.magic[1]='T';
+    header.magic[2]='D';
+    header.magic[3]='B';
+    header.version = 1;
+    header.stepCount = steps;
+    header.indexOffset = 0;
+    writeHeader(f,header);
+
+    vector<int64_t> index(steps);
+    int i=0;
+    for(TimelineNode *node = timeline.begin();node != nullptr;node = node->next){
+        index[i] = ftell(f);
+        write_snapshot(f,node->data);
+        i++;
+    }
+
+
+
+
+    header.indexOffset = ftell(f);
+    fwrite(index.data(), sizeof(int64_t), steps, f);
+    fseek(f, 0, 0);
+    writeHeader(f, header);
+    fclose(f);
+
+
+
+
+
+
 }
 // main section
 int32_t main()
