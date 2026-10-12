@@ -766,15 +766,24 @@ int32_t main()
     if (!validateProgram("source.bin"))
     {
         // send an error response instead of a .tdbg file
+        cout<<"Err: Invalid Program";
         return 1;
     }
 
     int64_t mainOffset = resolveProgram("source.bin", "resolve.bin");
-
+    if(mainOffset == -1){
+        cout<<"Err: no main function";
+        return 1;
+    }
     Timeline timeline;
-    executeProgram("resolve.bin", mainOffset, timeline);
+    if (!executeProgram("resolve.bin", mainOffset, timeline))
+    {
+        cout << "Error: execution failed";
+        return 1;
+    }
 
     writeTdbg(timeline, "session.tdbg");
+    cout<<"session.tdbg written yay!";
 
     return 0;
 }
