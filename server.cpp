@@ -12,8 +12,7 @@
 #include <string>
 #include <cstdint>
 #include <fstream>
-#include <unistd.h>
-#include <sys/socket.h>
+
 #include <cstdint>
 #include <cstdio>
 #include <vector>
@@ -687,7 +686,7 @@ void write_string_to_file(FILE *f,const string &s){
 
 }
 
-void write_snapshot(FILE *F, const Snapshot *s){
+void write_snapshot(FILE *f, const Snapshot *s){
     fwrite(&s->stackDepth, sizeof(int32_t),1,f);
 
 
