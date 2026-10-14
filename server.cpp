@@ -12,7 +12,8 @@
 #include <string>
 #include <cstdint>
 #include <fstream>
-
+#include <unistd.h>
+#include <sys/socket.h>
 #include <cstdint>
 #include <cstdio>
 #include <vector>
