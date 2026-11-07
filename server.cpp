@@ -372,11 +372,19 @@ int64_t resolveProgram(const char *sourcePath, const char *resolveBinPath)
         nextoffset = nextoffset + 8+4+line.size();
 
         if(word == "func"){
+            if(funcCount >= MAX_FUNCS){
+                fclose(write);
+                return -1;
+            }
             funcArray[funcCount].funcName = secondWord(line);
             funcArray[funcCount].byteOffsetInResolveBin = pos;
             funcCount++;
         }
         else if(word == "call"){
+            if(patchCount >= MAX_PATCHES){
+                fclose(write);
+                return -1;
+            }
             patches[patchCount].targetFuncName = secondWord(line);
             patches[patchCount].byteOffsetOfOffsetField = pos;
             patchCount++;
@@ -697,16 +705,16 @@ void write_snapshot(FILE *f, const Snapshot *s){
         fwrite(&fr.argc,sizeof(int32_t),1,f);
 
         for(int j=0;j<fr.argc;j++){
-            write_string_to_file(f,fr.argv[i].name);
-            fwrite(&fr.argv[i].value,sizeof(int32_t),1,f);
+            write_string_to_file(f,fr.argv[j].name);
+            fwrite(&fr.argv[j].value,sizeof(int32_t),1,f);
         }
 
         fwrite(&fr.returnLine,sizeof(int32_t),1,f);
         fwrite(&fr.localCount,sizeof(int32_t),1,f);
 
-        for(int i=0;i<fr.localCount;i++){
-            write_string_to_file(f,fr.locals[i].name);
-            fwrite(&fr.locals[i].value,sizeof(int32_t),1,f);
+        for(int k=0;k<fr.localCount;k++){
+            write_string_to_file(f,fr.locals[k].name);
+            fwrite(&fr.locals[k].value,sizeof(int32_t),1,f);
         }
     }
 }
