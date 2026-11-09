@@ -37,3 +37,10 @@
 
 ### 7th November 2026
 - starting Phase 2...
+
+### 8th + 9th November 2026
+- learned the basics of socket programing and how communication is happening between programs
+- preprocessor directives (what they are how to implement etc)
+- windows networking library (honestly dont know this that well just figured out enough to implement here)
+- TCP socket using IPV4 addressing 
+- helper implementation and even that just the basic stuff because i dont understand how to code any of this yet or whats happening even in the given codes

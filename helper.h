@@ -58,5 +58,64 @@ struct Snapshot
     int32_t stackDepth;
 };
 
+struct TTDBHeader
+{
+    char magic[4]; // "TTDB"
+    int32_t version;
+    int32_t stepCount;
+    int64_t indexOffset;
+};
+
+struct FuncEntry
+{
+    string funcName;
+    int64_t byteOffsetInResolveBin; // where this function's FUNC header record sits
+};
+struct PendingPatch
+{
+    int64_t byteOffsetOfOffsetField; // where in resolve.bin to seek back and overwrite
+    string targetFuncName;
+};
+
+
+
+inline  bool netInit(){
+    #ifdef _WIN32
+        WSADATA wsa;
+        return WSAStartup(MAKEWORD(2,2),&wsa) == 0
+    #else
+        return true;
+
+    #endif
+}
+
+inline void netCleanup(){
+    #ifdef _WIN32
+        WSACleanup();
+    #endif
+
+}
+
+inline socket_t makeTcpSocket(){
+    soct_t s = socekt(AF_INET, SOCK_STREAM,0);
+    #ifdef _WIN32
+        if( s != INVALID_SOCK){
+            SetHandleInformation((HANDLE)s,HANDLE_FLAG_INHERIT,0);
+        }
+    #else
+        if (s != INVALID_SOCK){
+            fcntl(s,F_SETFD,FD_CLOEXEC);
+
+        }
+    #endif
+    return s;
+}
+
+
+inline bool setRecvTimeout(socket_t s, int sec){
+    #ifdef _WIN32
+        DWORD ms = (DWORD)seconds * 1000;
+        return setsockopt(s,SOL_SOCKET,SO_RCVTIMEO,(const char *)&ms,sizeof(ms))==0;
+    }
 
 
