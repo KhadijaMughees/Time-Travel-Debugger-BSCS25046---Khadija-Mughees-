@@ -5,8 +5,9 @@
 #include <cstring>
 
 #ifdef _WIN32 //windows headers 
-    #include <winSock2.h>
+    #include <winsock2.h>
     #include <wS2tcpip.h>
+    #include <windows.h>
     typedef SOCKET socket_t;
     #define INVALID_SOCK INVALID_SOCKET
     #define CLOSE_SOCKET(s) closesocket(s)
@@ -22,6 +23,7 @@
     #include <sys/socket.h>
     #include <netinet/in.h>
     #include <arpa/inet.h>
+    #include <sys/time.h>
     typedef int socket_t;
     #define INVALID_SOCK (-1)
     #define CLOSE_SOCKET(s) close(s)
@@ -79,6 +81,72 @@ struct PendingPatch
 
 
 
+
+//checksum stuff
+
+struct Crc32{
+    uint32_t state;
+
+    Crc32(){
+        state = 0xFFFFFFFF; 
+    }
+
+    void update(const char* data, size_t n){
+        for(size_t i =0;i<n;i++){ //process each byte
+            state ^= (uint8_t)data[i]; //xor
+
+            for(int k=0;k<8;k++){
+                if( state & 1){
+                    state = (state >> 1) ^  0xEDB88320; //right shift smth standard polynomial i have given up on this for now
+
+                }
+                else{
+                    state = state >> 1;
+                }
+            }
+        }
+    }
+
+    uint32_t finish()const{
+        return ~state;
+    }
+};
+
+
+inline void crcToBytes (uint32_t crc,char out[4]){
+    for(int i=0;i<4;i++){
+        out[i] = (char)((crc >> (8 *i)) & 0xFF);
+    }
+}
+
+class TrailerChecker{
+    Crc32 crc;
+    string held;
+
+public:
+    void feed(const char* data, size_t n, string& released){
+        held.append(data,n);
+        released.clear();
+
+        if(held.size() > TRAILER_SIZE){
+            size_t safe = held.size() - TRAILER_SIZE;
+            released.assign(held,0,safe);
+            crc.update(released.data(),released.size());
+            held.erase(0,safe);
+        }
+
+    }
+
+    bool verify() const {
+        if(held.size( ) != TRAILER_SIZE){
+            return false;
+        }
+        char expected[4];
+        crcToBytes(crc.finish(),expected);
+        return memcmp(expected, held.data(),4) == 0;
+    }
+};
+
 inline  bool netInit(){
     #ifdef _WIN32
         WSADATA wsa;
@@ -97,7 +165,7 @@ inline void netCleanup(){
 }
 
 inline socket_t makeTcpSocket(){
-    soct_t s = socekt(AF_INET, SOCK_STREAM,0);
+    socket_t s = socket(AF_INET, SOCK_STREAM,0); //IPv4 TCP
     #ifdef _WIN32
         if( s != INVALID_SOCK){
             SetHandleInformation((HANDLE)s,HANDLE_FLAG_INHERIT,0);
