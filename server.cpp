@@ -738,7 +738,29 @@ void writeTdbg(Timeline &timeline, const char *tdbgPath)
 // main section
 int32_t main(int argc , char* argv[])
 {
+    if(argc != 2){
+        cout<<"Usage: server <port>"<<endl;
+        return 1;
+    }
 
+    int port;
+
+    try{
+        port = stoi(argv[1]);
+
+    }
+    catch(const exception& e){
+        cout<<"Invalid port number :("<<endl;
+        return 1;
+
+    }
+
+    if(port < 1 || port > 65535){
+        cout<<"Port out of bound (1-65535)"<<endl;
+        return 1;
+    }
+
+    
     if (!validateProgram("source.bin"))
     {
         // send an error response instead of a .tdbg file
