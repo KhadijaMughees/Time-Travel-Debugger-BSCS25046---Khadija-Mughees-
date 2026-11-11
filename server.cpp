@@ -12,7 +12,7 @@
 #include <string>
 #include <cstdint>
 #include <fstream>
-#include <helper.h>
+#include "helper.h"
 #include <cstdint>
 #include <cstdio>
 #include <vector>
@@ -403,9 +403,10 @@ enum TokenType
     IDENTIFIER,
     PARAM
 };
+
 struct Token
 {
-    TokenType type;
+    enum TokenType type;
     string text;
 };
 int32_t tokenizeLine(const string &line, Token tokens[], int32_t maxTokens)
@@ -760,7 +761,21 @@ int32_t main(int argc , char* argv[])
         return 1;
     }
 
-    
+
+    if(!netInit()){
+        cout<<"Network initialization failed :( boo"<<endl;
+        return 1;
+    }
+
+    socket_t serverSocket = makeTcpSocket();
+    if(serverSocket == INVALID_SOCK){
+        cout<<"failed to create server socket :("<<endl;
+        netCleanup();
+        return 1;
+    }
+
+    cout<<"Server socket created :)"<<endl;
+
     if (!validateProgram("source.bin"))
     {
         // send an error response instead of a .tdbg file
