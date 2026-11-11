@@ -736,7 +736,7 @@ void writeTdbg(Timeline &timeline, const char *tdbgPath)
 
 }
 // main section
-int32_t main()
+int32_t main(int argc , char* argv[])
 {
 
     if (!validateProgram("source.bin"))

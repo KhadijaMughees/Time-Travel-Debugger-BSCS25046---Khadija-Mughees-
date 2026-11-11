@@ -194,3 +194,60 @@ inline bool setRecvTimeout(socket_t s, int seconds){
 }
 
 
+//sendall will keep calling send until all requested bytes have been sent
+inline bool sendAll(socket_t s, const void*data, size_t len){
+    const char* bytes = static_cast<const char*>(data);
+    size_t sent = 0;
+
+
+    while(sent < len){
+        int chunk = (int)(len - sent);
+
+        if(chunk > IO_BUFFER_SIZE){
+            chunk = IO_BUFFER_SIZE;
+        }
+       
+            
+        
+
+        int n= send(s,bytes+sent,chunk,MSG_NOSIGNAL);
+
+        if(n<=0){
+            return false;
+        }
+
+        sent += n;
+
+    }
+
+    return true;
+}
+
+
+
+inline bool recvAll(socket_t s, void* data, size_t len){
+    char* bytes = static_cast<char*> (data);
+
+    size_t received = 0;
+    
+
+    while(received < len){
+        int chunk = (int)(len - received);
+
+        if(chunk > IO_BUFFER_SIZE){
+            chunk = IO_BUFFER_SIZE;
+        }
+
+        int n = recv(s,bytes+received,chunk,0);
+
+        if(n <= 0){
+            return false;
+        }
+
+        received += n;
+    }
+
+    return true;
+}
+
+
