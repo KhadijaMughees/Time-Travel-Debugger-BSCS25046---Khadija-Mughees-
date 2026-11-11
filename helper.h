@@ -5,8 +5,8 @@
 #include <cstring>
 
 #ifdef _WIN32 //windows headers 
-    #include <WinSock2.h>
-    #include <WS2tcpip.h>
+    #include <winSock2.h>
+    #include <wS2tcpip.h>
     typedef SOCKET socket_t;
     #define INVALID_SOCK INVALID_SOCKET
     #define CLOSE_SOCKET(s) closesocket(s)
@@ -23,7 +23,7 @@
     #include <netinet/in.h>
     #include <arpa/inet.h>
     typedef int socket_t;
-    #define INVALID_SOCK(-1)
+    #define INVALID_SOCK (-1)
     #define CLOSE_SOCKET(s) close(s)
 #endif
 
@@ -35,7 +35,7 @@ const int IO_BUFFER_SIZE = 64 * 1024;
 const int CLIENT_TIMEOUT_SEC = 30;
 const int TRAILER_SIZE = 4;
 const char STATUS_OK = 0;
-const char STATUS_ = 1;
+const char STATUS_ERROR = 1;
 
 // Helper.h should contain the structs, functions, constants, etc. that are used more than one time in the project. For example, the structs that are used in both server and client, the constants that are used in all three files. 
 struct Variable
@@ -82,7 +82,7 @@ struct PendingPatch
 inline  bool netInit(){
     #ifdef _WIN32
         WSADATA wsa;
-        return WSAStartup(MAKEWORD(2,2),&wsa) == 0
+        return WSAStartup(MAKEWORD(2,2),&wsa) == 0;
     #else
         return true;
 
@@ -112,10 +112,17 @@ inline socket_t makeTcpSocket(){
 }
 
 
-inline bool setRecvTimeout(socket_t s, int sec){
+inline bool setRecvTimeout(socket_t s, int seconds){
     #ifdef _WIN32
         DWORD ms = (DWORD)seconds * 1000;
         return setsockopt(s,SOL_SOCKET,SO_RCVTIMEO,(const char *)&ms,sizeof(ms))==0;
-    }
+    
+    #else
+        timeval tv;
+        tv.tv_sec = seconds;
+        tv.tv_usec =0;
+        return setsockopt(s,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv)) == 0;
+    #endif
+}
 
 

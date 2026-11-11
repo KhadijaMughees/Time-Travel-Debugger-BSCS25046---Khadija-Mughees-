@@ -44,3 +44,7 @@
 - windows networking library (honestly dont know this that well just figured out enough to implement here)
 - TCP socket using IPV4 addressing 
 - helper implementation and even that just the basic stuff because i dont understand how to code any of this yet or whats happening even in the given codes
+
+
+### 11th November 2026
+- i have been really sick for the past three days and especially today but i didnt want to just waste the enitre day so i watched a few videos on the basics of socket programming mostly the theory side to understand what is actually happening. will also try to get some code done since i am already past the deadline (not a good time for smog to be hitting me thanks lahore <3)
