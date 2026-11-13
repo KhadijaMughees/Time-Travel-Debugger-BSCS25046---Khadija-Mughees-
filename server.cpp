@@ -776,6 +776,34 @@ int32_t main(int argc , char* argv[])
 
     cout<<"Server socket created :)"<<endl;
 
+    //port and address stuff
+    sockaddr_in serverAddress;
+    serverAddress.sin_family = AF_INET; //ipv4
+    serverAddress.sin_port = htons(port); //setting port number (htons - convert port num into network byte order)
+    serverAddress.sin_addr.s_addr = INADDR_ANY; // server accept connections thorugh any availible network interface;
+
+    //binding socket
+    if(bind(serverSocket,(sockaddr*)&serverAddress, sizeof(serverAddress)) == SOCKET_ERROR){
+        cout<<"Failed to bind server socket :("<<endl;
+        CLOSE_SOCKET(serverSocket);
+        netCleanup();
+        return 1;
+    }
+
+    cout<<"Server bound to port :)"<<endl;
+
+    //listening (a man could never)
+    if(listen(serverSocket,SOMAXCONN) == SOCKET_ERROR){
+        cout<<"server failed to listen :("<<endl;
+        CLOSE_SOCKET(serverSocket);
+        netCleanup();
+        return 1;
+
+    }
+    cout<<"Server listening"<<endl
+    
+
+
     if (!validateProgram("source.bin"))
     {
         // send an error response instead of a .tdbg file
