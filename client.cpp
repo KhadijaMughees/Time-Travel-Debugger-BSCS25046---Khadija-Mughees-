@@ -28,7 +28,7 @@ using namespace std;
 // ---- Constants ----
 const char *PROGRAM_NAME = "ttdb";
 const char *PROMPT = "ttdb> ";
-const int IO_BUFFER_SIZE = 64 * 1024;     // fixed buffer for streaming files to and from the socket
+   // fixed buffer for streaming files to and from the socket
 const char *TDBG_FILE = "ttdb_last.tdbg"; // where the downloaded .tdbg is saved
 const int MAX_JUMP = 1000000000;          // biggest n accepted by jmp
 string LB_HOST = "127.0.0.0";
@@ -36,37 +36,10 @@ int LB_PORT = 5000;
 
 // These two must be the same as in Phase 1
 
-const int MAX_VARS_PER_FRAME = 16;
-const int MAX_STACK_DEPTH = 64;
+
 
 
 // ---- Structs (same as Phase 1, so the file can be read back exactly as it was written) ----
-struct Variable
-{
-    string name;
-    int32_t value;
-};
-struct Frame
-{
-    string func_name;
-    int32_t argc;
-    Variable argv[MAX_VARS_PER_FRAME];
-    int32_t returnLine;
-    Variable locals[MAX_VARS_PER_FRAME];
-    int32_t localCount;
-};
-struct Snapshot
-{
-    Frame callStack[MAX_STACK_DEPTH];
-    int32_t stackDepth;
-};
-struct TTDBHeader 
-{
-    char magic[4]; // "TTDB"
-    int32_t version;
-    int32_t stepCount;
-    int64_t indexOffset;
-};
 
 // ---- Structs only the client needs ----
 struct TdbgReader
@@ -86,27 +59,81 @@ struct DebugSession
 // PART A: TALKING TO THE LOAD BALANCER
 // =============================================================================================
 
-bool recvAll(int sock, char *buf, size_t n)
-{
-    // recv() can return fewer bytes than asked for, so keep calling it until exactly n bytes are read.
-    // Return false if the connection closes or fails before n bytes arrive.
-}
-bool sendAll(int sock, const char *buf, size_t n)
-{
-    // send() can send fewer bytes than asked for, so keep calling it until all n bytes are sent.
-    // Use the flag MSG_NOSIGNAL. Return false if the connection fails.
-}
+
 
 int connectToHost(const char *host, int port)
 {
     // Create a TCP socket and connect it to host:port.
     // Return the socket, or -1 if the connection fails.
+
+    socket_t sock = makeTcpSocket();
+    if(sock == INVALID_SOCK){
+        return -1;
+    }
+
+
+    sock_in address;
+    memset(&address,0,sizeof(address));
+    address.sin_family = AF_INET;
+    address.sin_port = htons(port);
+
+
+
+
+
+    if(inet_pton(AF_INET,host,&address.sin_addr) != 1){
+        CLOSE_SOCKET(sock);
+        return -1;
+    }
+
+    if(connect(sock,(sockaddr *)&address,sizeof(address)) < 0){
+        CLOSE_SOCKET(sock);
+        return -1;
+    }
+
+
+    return sock;
 }
 bool uploadSource(int sock, const char *sourcePath)
 {
     // have to do checksum and then send
     // When the file is finished, call shutdown(sock, SHUT_WR). This is how the server knows the string is complete.
     // Return false if the file cannot be opened or any send fails.
+
+    FILE *f = fopen(sorucePath,"rb");
+    if(f == nullptr){
+        return false;
+    }
+
+    Crc32 crc;
+    char status = STATUS_OK;
+
+
+    if(!sendWithCrc(sock,&status,1,crc)){
+        fclose(f);
+        return false;
+    }
+
+
+
+    char buffer[IO_BUFFER_SIZE];
+    while(true){
+        size_t n = fread(buffer,1,IO_BUFFER_SIZE,f);
+        if(n==0){
+            break;
+        }
+        if(!sendWithCrc(sock,buffer,n,crc)){
+            fclose(f);
+            return false;
+        }
+    }
+    fclose(f);
+
+    if(!sendTrailer(sock,crc)){
+        return false;
+    }
+    shutdown(sock,SHUT_WR);
+    return true;
 }
 bool receiveResponse(int sock, const char *outTdbgPath, string &outError)
 {
