@@ -9,6 +9,7 @@
     #include <wS2tcpip.h>
     #include <windows.h>
     typedef SOCKET socket_t;
+    typedef int sock_len_t;
     #define INVALID_SOCK INVALID_SOCKET
     #define CLOSE_SOCKET(s) closesocket(s)
     #ifndef SHUT_WR
@@ -27,6 +28,8 @@
     typedef int socket_t;
     #define INVALID_SOCK (-1)
     #define CLOSE_SOCKET(s) close(s)
+    #define SOCKET_ERROR(-1)
+    typedef socklen_t sock_len_t;
 #endif
 
 using namespace std;
@@ -145,6 +148,10 @@ public:
         crcToBytes(crc.finish(),expected);
         return memcmp(expected, held.data(),4) == 0;
     }
+
+    const string &trailer() const{
+        return held;
+    }
 };
 
 inline  bool netInit(){
@@ -251,3 +258,14 @@ inline bool recvAll(socket_t s, void* data, size_t len){
 }
 
 
+inline bool sendWithCrc(socket_t s, const void *data, size_t len, Crc32 &crc){
+    crc.update(static_cast<const char*>(data), len);
+    return sendAll(s,data,len);
+}
+
+
+inline bool sendTrailer(socket_t s, const Crc32 &crc){
+    char bytes[4];
+    crcToBytes(crc.finish(),bytes);
+    return sendAll(s,bytes,4);
+}

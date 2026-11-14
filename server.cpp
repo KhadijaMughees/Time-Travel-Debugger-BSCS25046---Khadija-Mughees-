@@ -147,6 +147,16 @@ public:
     {
         return stepCount;
     }
+
+    ~Timeline(){
+        TimelineNode *node = head;
+        while(node != nullptr){
+            TimelineNode *next = node->next;
+            delete node->data;
+            delete node;
+            node = next;
+        }
+    }
 };
 
 // Core structs
@@ -688,7 +698,7 @@ void write_snapshot(FILE *f, const Snapshot *s){
     }
 }
 // PASS 0x3: SERIALIZE TIMELINE
-void writeTdbg(Timeline &timeline, const char *tdbgPath)
+bool writeTdbg(Timeline &timeline, const char *tdbgPath)
 {
     // placeholder for header
     // index array of the size of stepcount from the timeline
@@ -698,7 +708,7 @@ void writeTdbg(Timeline &timeline, const char *tdbgPath)
 
     FILE *f = fopen(tdbgPath,"wb+");
     if(f == nullptr){
-        return;
+        return false;
     }
 
     int32_t steps = timeline.getStepCount();
@@ -730,12 +740,128 @@ void writeTdbg(Timeline &timeline, const char *tdbgPath)
     writeHeader(f, header);
     fclose(f);
 
-
+    return true;
 
 
 
 
 }
+
+//network stuff
+
+
+bool receiveSource(socket_t sock, const char* path, string &error){
+    FILE *f = fopen(path,"wb");
+    if(f == nullptr){
+        error = "server could not create source file";
+        return false;
+    }
+
+    TrailerChecker check;
+    string realData;
+    char buffer[IO_BUFFER_SIZE];
+    bool receviedSat = false;
+    char stat = STATUS_OK;
+    uint64_t totalBytes = 0;
+
+    while(true){
+        int n = recv(sock,buffer,IO_BUFFER_SIZE,0);
+
+        if(n == 0){
+            break;
+        }
+
+        if(n<0){
+            fclose(f);
+            error = "connection error while receiving ";
+            return false;
+        }
+
+        totalBytes = totalBytes +n;
+        if(totalBytes > MAX_SOURCE_BYTES){
+            fclose(f);
+            error = "program size exceeded max size";
+            return false;
+
+        }
+
+        check.feed(buffer,n,realData);
+        size_t start =0;
+        if(!receviedSat && !realData.empty()){
+            stat = realData[0];
+            receviedSat = true;
+            start = 1;
+        }
+
+        if(realData.size() > start){
+            fwrite(realData.data() + start,1,realData.size()-start,f);
+        }
+
+    }
+
+    fclose(f);
+    if(!check.verify()){
+        error = "upload checksum mismatch";
+        return false;
+    }
+
+    if(!receviedSat || stat != STATUS_OK){
+        error = "bad upload";
+        return false;
+    }
+
+    return true;
+}
+
+
+
+bool sendError(socket_t sock, const string &message){
+    Crc32 crc;
+    char status = STATUS_ERROR;
+
+    if(!sendWithCrc(sock,&status,1,crc)){
+        return false;
+    }
+
+
+    if(!sendWithCrc(sock,message.data(),message.size(),crc)){
+        return false;
+    }
+
+
+    return sendTrailer(sock,crc);
+}
+
+bool sendTdbgReply(socket_t sock, const char *path){
+    FILE *f = fopen(path,"rb");
+    if(f == nullptr){
+        return sendError(sock,"sever could not read result file");
+    }
+
+    Crc32 crc;
+    char status = STATUS_OK;
+    if(!sendWithCrc(sock,&status,1,crc)){
+        fclose(f);
+        return false;
+    }
+
+    char buffer[IO_BUFFER_SIZE];
+    while(true){
+        size_t n = fread(buffer,1,IO_BUFFER_SIZE,f);
+        if(n == 0){
+            break;
+        }
+        if(!sendWithCrc(sock,buffer,n,crc)){
+            fclose(f);
+            return false;
+        }
+    }
+
+    fclose(f);
+    return sendTrailer(sock,crc);
+}
+
+
 // main section
 int32_t main(int argc , char* argv[])
 {
@@ -776,6 +902,9 @@ int32_t main(int argc , char* argv[])
 
     cout<<"Server socket created :)"<<endl;
 
+    int yes =1;
+    setsockopt(serverSocket,SOL_SOCKET,SO_REUSEADDR,(const char *)&yes, sizeof(yes));
+
     //port and address stuff
     sockaddr_in serverAddress;
     serverAddress.sin_family = AF_INET; //ipv4
@@ -800,31 +929,72 @@ int32_t main(int argc , char* argv[])
         return 1;
 
     }
-    cout<<"Server listening"<<endl
-    
+    cout<<"Server listening :)"<<endl;
+
+    while(true){
+        sockaddr_in clientAdd;
+        sock_len_t length = sizeof(clientAdd);
+        socket_t clientSocket = accept(serverSocket, (sockaddr *)&clientAdd,&length);
+
+        if(clientSocket == INVALID_SOCK){
+            cout<<"failed to accept client connection... still listening"<<endl;
+            continue;
+        }
+        cout<<"Client Connected :)"<<endl;
+
+        setRecvTimeout(clientSocket, SOCKET_TIMEOUT_SEC);
+        string error;
+
+        if(!receiveSource(clientSocket,"source.bin",error)){
+            sendError(clientSocket,error);
+            CLOSE_SOCKET(clientSocket);
+            continue;
+        }
+
+        if(!validateProgram("source.bin")){
+            sendError(clientSocket,"invalid program");
+            CLOSE_SOCKET(clientSocket);
+            continue;
+        }
+
+        int64_t mainOffset = resolveProgram("source.bin","resolve.bin");
+        if(mainOffset == -1){
+            sendError(clientSocket,"no main function or undefined function");
+            CLOSE_SOCKET(clientSocket);
+            continue;
+        }
+
+        Timeline timeline;
+        bool ok = false;
+        try{
+            ok = executeProgram("resolve.bin",mainOffset,timeline);
+        }
+        catch(...){
+            ok = false;
+        }
 
 
-    if (!validateProgram("source.bin"))
-    {
-        // send an error response instead of a .tdbg file
-        cout<<"Err: Invalid Program";
-        return 1;
+
+        if(!ok){
+            sendError(clientSocket,"execution failed");
+            CLOSE_SOCKET(clientSocket);
+            continue;
+        }
+
+
+        if(!writeTdbg(timeline,"session.tdbg")){
+            sendError(clientSocket,"server could not write the .tdbg file");
+            CLOSE_SOCKET(clientSocket);
+            continue;
+        }
+
+        sendTdbgReply(clientSocket,"session.tdbg");
+        cout<<"reply sent :)"<<endl;
+        CLOSE_SOCKET(clientSocket);
+
     }
 
-    int64_t mainOffset = resolveProgram("source.bin", "resolve.bin");
-    if(mainOffset == -1){
-        cout<<"Err: no main function";
-        return 1;
-    }
-    Timeline timeline;
-    if (!executeProgram("resolve.bin", mainOffset, timeline))
-    {
-        cout << "Error: execution failed";
-        return 1;
-    }
-
-    writeTdbg(timeline, "session.tdbg");
-    cout<<"session.tdbg written yay!";
-
+    CLOSE_SOCKET(serverSocket);
+    netCleanup();
     return 0;
 }
