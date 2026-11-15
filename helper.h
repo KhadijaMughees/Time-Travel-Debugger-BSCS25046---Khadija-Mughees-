@@ -6,7 +6,7 @@
 
 #ifdef _WIN32 //windows headers 
     #include <winsock2.h>
-    #include <wS2tcpip.h>
+    #include <ws2tcpip.h>
     #include <windows.h>
     typedef SOCKET socket_t;
     typedef int sock_len_t;
@@ -25,6 +25,7 @@
     #include <netinet/in.h>
     #include <arpa/inet.h>
     #include <sys/time.h>
+    #include <sys/select.h>
     typedef int socket_t;
     #define INVALID_SOCK (-1)
     #define CLOSE_SOCKET(s) close(s)
@@ -304,4 +305,45 @@ inline int connectToHost(const char *host, int port)
 
 
     return sock;
+}
+
+
+
+
+inline void sleepMs(int ms){
+    #ifdef _WIN32
+        Sleep(ms);
+    #else
+        usleep(ms * 1000);
+    #endif
+}
+
+
+inline bool waitForReadable (socket_t s, int ms){
+    fd_set rset;
+    FD_ZERO(&rset);
+    FD_SET(s, &rset);
+
+    timeval tv;
+    tv.tv_sec = ms/1000;
+    tv.tv_usec = (ms % 1000) * 1000;
+
+    #ifdef _WIN32
+        int res = select(0,&rset,nullptr,nullptr,&tv);
+    #else
+        int res = select(s+1,&rset,nullptr,nullptr,&tv);
+    #endif
+
+    return res>0;
+
+}
+
+
+
+inline void noInherit(socket_t s){
+    #ifdef _WIN32
+        SetHandleInformation((HANDLE)s, HANDLE_FLAG_INHERIT, 0);
+    #else
+        fcntl(s, F_SETFD, FD_CLOEXEC);
+    #endif
 }

@@ -31,7 +31,7 @@ const char *PROMPT = "ttdb> ";
    // fixed buffer for streaming files to and from the socket
 const char *TDBG_FILE = "ttdb_last.tdbg"; // where the downloaded .tdbg is saved
 const int MAX_JUMP = 1000000000;          // biggest n accepted by jmp
-string LB_HOST = "127.0.0.0";
+string LB_HOST = "127.0.0.1";
 int LB_PORT = 5000;
 
 // These two must be the same as in Phase 1
