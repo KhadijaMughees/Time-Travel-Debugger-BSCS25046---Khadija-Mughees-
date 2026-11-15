@@ -333,7 +333,12 @@ void relayOneClient(ClientInfo &c)
 
     if(!uploadok || !uploadChecker.verify()){
         CLOSE_SOCKET(serverSock);
-        refuseClient(clientSock,"upload checksum mismatch");
+        if(!uploadok){
+            refuseClient(clientSock,"upload failed, connection error or timeout");
+        }
+        else{
+            refuseClient(clientSock,"upload checksum mismatch");
+        }
         return;
     }
 
@@ -427,7 +432,7 @@ void acceptLoop(int listenSock)
         }  
         
         if(!accepted){
-            refuseClient(clientSock,"server busy rn try again later");
+            refuseClient(clientSock,"server busy, try again later");
 
         }
 

@@ -1,4 +1,8 @@
 #pragma once
+#ifdef _WIN32
+    #define WIN32_LEAN_AND_MEAN
+    #define NOMINMAX
+#endif
 #include <string>
 #include <cstdint>
 #include <cstdio>
@@ -29,7 +33,7 @@
     typedef int socket_t;
     #define INVALID_SOCK (-1)
     #define CLOSE_SOCKET(s) close(s)
-    #define SOCKET_ERROR(-1)
+    #define SOCKET_ERROR (-1)
     typedef socklen_t sock_len_t;
 #endif
 

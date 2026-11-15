@@ -38,7 +38,7 @@ int LB_PORT = 5000;
 
 const char *TDBG_FILE_B = "ttdb_last_b.tdbg";
 bool useSecondFile = false;
-const int MAX_NAME_LENGTH = 256;
+const int MAX_NAME_LENGTH =  1000000;
 
 // These two must be the same as in Phase 1
 
@@ -229,7 +229,7 @@ bool openTdbg(const char *path, TdbgReader &r)
            && fread(&h.indexOffset, sizeof(int64_t), 1, r.file) == 1;
 
     if(ok){
-        ok = memcmp(h.magic,"TTDG",4) == 0 && h.stepCount >0;
+        ok = memcmp(h.magic,"TTDB",4) == 0 && h.stepCount >0;
     }
 
 
@@ -414,7 +414,12 @@ bool cmdStart(DebugSession &s, const string &sourcePath)
     // 4. Only now close the old reader (if s.active), then put the new reader into s,
     //    set s.currentStep = 0 and s.active = true.
     // 5. Show step 1 with showCurrent(s).
-
+    FILE *test = fopen(sourcePath.c_str(),"rb");
+    if(test == nullptr){
+        cout<<"cannot open "<<sourcePath<<endl;
+        return false;
+    }
+    fclose(test);
     const char *newpath;
     if(useSecondFile == true){
         newpath = TDBG_FILE_B;
@@ -453,7 +458,15 @@ bool cmdStart(DebugSession &s, const string &sourcePath)
         return false;
     }
 
-
+     Snapshot *probe = readSnapshotAt(newReader,0);
+    if(probe == nullptr){
+        cout<<"server sent a damaged .tdbg file"<<endl;
+        closeTdbg(newReader);          // close BEFORE remove (Windows cannot delete an open file)
+        remove(newpath);
+        return false;
+    }
+    delete probe;
+    
     if(s.active_flag){
         closeTdbg(s.reader);
     }
@@ -531,7 +544,7 @@ bool parseNum(const string &text, int32_t &out){
 
 
     for(char ch : text){
-        if(!isdigit((unsigned)ch)){
+        if(!isdigit((unsigned char)ch)){
             return false;
         }
     }

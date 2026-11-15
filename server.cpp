@@ -863,7 +863,7 @@ bool sendTdbgReply(socket_t sock, const char *path){
 
 
 // main section
-int32_t main(int argc , char* argv[])
+int main(int argc , char* argv[])
 {
     if(argc != 2){
         cout<<"Usage: server <port>"<<endl;
@@ -907,6 +907,7 @@ int32_t main(int argc , char* argv[])
 
     //port and address stuff
     sockaddr_in serverAddress;
+     memset(&serverAddress,0,sizeof(serverAddress));  
     serverAddress.sin_family = AF_INET; //ipv4
     serverAddress.sin_port = htons(port); //setting port number (htons - convert port num into network byte order)
     serverAddress.sin_addr.s_addr = INADDR_ANY; // server accept connections thorugh any availible network interface;
