@@ -18,10 +18,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <unistd.h>
+
 #include <signal.h>
 #include <vector>
-#include <sys/socket.h>
+
 #include "helper.h"
 using namespace std;
 
@@ -44,7 +44,7 @@ int LB_PORT = 5000;
 // ---- Structs only the client needs ----
 struct TdbgReader
 {
-    ssize_t file_index;
+    size_t file_index;
     TTDBHeader header;
     vector<int64_t> index;
 };
@@ -61,46 +61,14 @@ struct DebugSession
 
 
 
-int connectToHost(const char *host, int port)
-{
-    // Create a TCP socket and connect it to host:port.
-    // Return the socket, or -1 if the connection fails.
 
-    socket_t sock = makeTcpSocket();
-    if(sock == INVALID_SOCK){
-        return -1;
-    }
-
-
-    sock_in address;
-    memset(&address,0,sizeof(address));
-    address.sin_family = AF_INET;
-    address.sin_port = htons(port);
-
-
-
-
-
-    if(inet_pton(AF_INET,host,&address.sin_addr) != 1){
-        CLOSE_SOCKET(sock);
-        return -1;
-    }
-
-    if(connect(sock,(sockaddr *)&address,sizeof(address)) < 0){
-        CLOSE_SOCKET(sock);
-        return -1;
-    }
-
-
-    return sock;
-}
 bool uploadSource(int sock, const char *sourcePath)
 {
     // have to do checksum and then send
     // When the file is finished, call shutdown(sock, SHUT_WR). This is how the server knows the string is complete.
     // Return false if the file cannot be opened or any send fails.
 
-    FILE *f = fopen(sorucePath,"rb");
+    FILE *f = fopen(sourcePath,"rb");
     if(f == nullptr){
         return false;
     }
@@ -142,6 +110,87 @@ bool receiveResponse(int sock, const char *outTdbgPath, string &outError)
     // Status 1: collect the payload into outError. Status 0: write the payload to the file.
     // At the end call verify(). If it fails, delete the file, set outError to
     // "checksum mismatch, response corrupted" and return false.
+
+
+    setRecvTimeout(sock,CLIENT_TIMEOUT_SEC);
+
+    TrailerChecker checker;
+    string released;
+    char buffer[IO_BUFFER_SIZE];
+    bool gotStatus = false;
+    char status = STATUS_OK;
+    FILE *f = nullptr;
+    outError = "";
+
+
+    while(true){
+        int n = recv(sock,buffer,IO_BUFFER_SIZE,0);
+
+        if(n == 0){
+            break;
+        }
+
+        if(n<0){
+            if(f != nullptr){
+                fclose(f);
+                remove(outTdbgPath);
+            }
+            outError = "connection error while receiving reply";
+            return false;
+        }
+
+        checker.feed(buffer,n,released);
+        size_t start = 0;
+        if(!gotStatus && !released.empty()){
+            status = released[0];
+            gotStatus = true;
+            start = 1;
+
+            if (status == STATUS_OK){
+            f= fopen(outTdbgPath,"wb");
+            if(f==nullptr){
+                outError = "client could not create the .tdbg file";
+                return false;
+            }
+          }
+        }
+
+        
+
+         if(released.size() > start){
+        if(status == STATUS_OK){
+            fwrite(released.data() + start,1,released.size()-start,f);
+        }
+        else{
+            outError.append(released,start,string::npos);
+        }
+    }
+    }
+
+    if(f != nullptr){
+        fclose(f);
+    }
+
+
+   if(!gotStatus){
+    outError = "connection closed with no reply";
+    return false;
+   }
+
+   if(!checker.verify()){
+    if(status == STATUS_OK){
+        remove(outTdbgPath);
+    }
+    outError = "checksum mismatch, response corrupted";
+    return false;
+   }
+
+   if( status != STATUS_OK){
+        return false;
+   }
+
+   return true;
+   
 }
 
 // =============================================================================================

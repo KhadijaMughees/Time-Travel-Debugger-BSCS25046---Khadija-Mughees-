@@ -269,3 +269,39 @@ inline bool sendTrailer(socket_t s, const Crc32 &crc){
     crcToBytes(crc.finish(),bytes);
     return sendAll(s,bytes,4);
 }
+
+
+
+inline int connectToHost(const char *host, int port)
+{
+    // Create a TCP socket and connect it to host:port.
+    // Return the socket, or -1 if the connection fails.
+
+    socket_t sock = makeTcpSocket();
+    if(sock == INVALID_SOCK){
+        return -1;
+    }
+
+
+    sockaddr_in address;
+    memset(&address,0,sizeof(address));
+    address.sin_family = AF_INET;
+    address.sin_port = htons(port);
+
+
+
+
+
+    if(inet_pton(AF_INET,host,&address.sin_addr) != 1){
+        CLOSE_SOCKET(sock);
+        return -1;
+    }
+
+    if(connect(sock,(sockaddr *)&address,sizeof(address)) < 0){
+        CLOSE_SOCKET(sock);
+        return -1;
+    }
+
+
+    return sock;
+}
